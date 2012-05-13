@@ -95,22 +95,19 @@ int battery()
   buf[7] = 0;
   n = 100*atoi(buf);
 
-  fclose(f);
-  if (ferror(f))
-    fprintf(stderr, "Error with file %s", BATTERY_NOW_FILE);
+  if (fclose(f) == EOF)
+    perror("fclose()");
 
   FOPEN(f, BATTERY_FULL_FILE);
   if (f == NULL)
     return -1;
 
-
   fread(buf, sizeof *buf, 7, f);
   buf[7] = 0;
   n /= atoi(buf);
 
-  fclose(f);
-  if (ferror(f))
-    fprintf(stderr, "Error with file %s", BATTERY_FULL_FILE);
+  if (fclose(f) == EOF)
+    perror("fclose()");
 
   return n;
 }
@@ -155,6 +152,7 @@ const char *build_status()
       strncpy(mpd_str, info->filename, strlen(info->filename)+1);
   else
     strncpy(mpd_str, "no", 3);
+  free(info);
 
   snprintf(res, 256, "♫ %s | %s | ⚡ %s | %d°C | %s",
            mpd_str, wireless_str, battery_str, temperature(), d);
@@ -164,7 +162,6 @@ const char *build_status()
   free(mpd_str);
   free((void *)d);
 
-  mpd();
   return res;
 }
 
@@ -251,7 +248,7 @@ mpd_info_t *mpd()
       perror("recv()");
       goto fail;
     }
-    for (newline_pos = 0; 
+    for (newline_pos = 0;
          newline_pos < n && buf[newline_pos] != '\n';
          newline_pos++)
       ;
@@ -304,10 +301,8 @@ int temperature()
 
   fread(buf, sizeof *buf, 2, f);
   buf[2] = 0;
-  fclose(f);
-
-  if (ferror(f))
-    fprintf(stderr, "Error with file %s", TEMPERATURE_FILE);
+  if (fclose(f) == EOF)
+    perror("fclose()");
 
   return atoi(buf);
 }
@@ -322,9 +317,8 @@ int wireless_state()
     return 0;
 
   fread(&buf, sizeof buf, 1, f);
-  fclose(f);
-  if (ferror(f))
-    fprintf(stderr, "Error with file %s", WIRELESS_FILE);
+  if (fclose(f) == EOF)
+    perror("fclose()");
 
   return buf == '1';
 }
