@@ -17,18 +17,15 @@
 
 #define ALLOCATE(var, n) \
   if (!((var) = calloc((n), sizeof *(var)))) { \
-    die("Cannot allocate %u bytes", n * sizeof *(var)); \
     if (dpy && root) \
       XStoreName(dpy, root, "Memory error"); \
+    die("Cannot allocate %u bytes", n * sizeof *(var)); \
   }
 
 #define FOPEN(f, file) \
   if (!((f) = fopen((file), "r"))) { \
-    die("Cannot open file %s", (file)); \
-    if (dpy && root) \
-      XStoreName(dpy, root, "I/O error"); \
+    fprintf(stderr, "Cannot open file %s\n", (file)); \
   }
-      
 
 Display *dpy = NULL;
 int screen;
@@ -56,7 +53,7 @@ int main()
 
   while (1) {
     status = build_status();
-    XStoreName(dpy, root, status); 
+    XStoreName(dpy, root, status);
     XFlush(dpy);
     sleep(TIMEOUT);
   }
@@ -74,7 +71,8 @@ int battery()
   char buf[8];
   int n;
 
-  if (!(f = fopen(BATTERY_NOW_FILE, "r")))
+  FOPEN(f, BATTERY_NOW_FILE);
+  if (f == NULL)
     return -1;
 
   fread(buf, sizeof *buf, 7, f);
@@ -83,9 +81,12 @@ int battery()
 
   fclose(f);
   if (ferror(f))
-    die("Error with file %s", BATTERY_NOW_FILE);
+    fprintf(stderr, "Error with file %s", BATTERY_NOW_FILE);
 
   FOPEN(f, BATTERY_FULL_FILE);
+  if (f == NULL)
+    return -1;
+
 
   fread(buf, sizeof *buf, 7, f);
   buf[7] = 0;
@@ -93,7 +94,7 @@ int battery()
 
   fclose(f);
   if (ferror(f))
-    die("Error with file %s", BATTERY_FULL_FILE);
+    fprintf(stderr, "Error with file %s", BATTERY_FULL_FILE);
 
   return n;
 }
@@ -104,8 +105,7 @@ const char *build_status()
   const char *d, *ip;
   int b, w;
 
-  if (!(res = calloc(256, sizeof *res)))
-    die("Cannot allocate %u bytes", 256 * sizeof *res);
+  ALLOCATE(res, 256);
 
   d = date();
 
@@ -124,10 +124,10 @@ const char *build_status()
     free((void *)ip);
   }
   else {
-    strncpy(wireless_str, "✗", 3); 
+    strncpy(wireless_str, "✗", 3);
   }
 
-  snprintf(res, 256, "%s | ⚡ %s | %d°C | %s", 
+  snprintf(res, 256, "%s | ⚡ %s | %d°C | %s",
            wireless_str, battery_str, temperature(), d);
 
   free((void *)d);
@@ -141,8 +141,7 @@ const char *date()
   time_t t;
   char *res;
 
-  if (!(res = calloc(21, sizeof *res)))
-    die("Cannot allocate %u bytes", 20 * sizeof *res);
+  ALLOCATE(res, 21);
 
   t = time(NULL);
   strftime(res, 20, "%D %H:%M", localtime(&t));
