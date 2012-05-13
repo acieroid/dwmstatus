@@ -148,6 +148,7 @@ const char *build_status()
 
   free((void *)d);
 
+  mpd();
   return res;
 }
 
@@ -196,12 +197,15 @@ const char *ip_address()
 
 mpd_info_t *mpd()
 {
+  int done, n, newline_pos;
   int fd;
   struct sockaddr_in addr;
+  char buf[256];
   mpd_info_t *info;
 
   ALLOCATE(info, 1);
 
+  done = 0;
   fd = 0;
   addr.sin_family = AF_INET;
   addr.sin_port = htons(MPD_PORT);
@@ -220,13 +224,36 @@ mpd_info_t *mpd()
   }
 
   /* Send the command */
-  if (send(fd, "currentsong", strlen("currentsong"), 0) == -1) {
+  if (send(fd, "currentsong\n", strlen("currentsong\n"), 0) == -1) {
     perror("send()");
     goto fail;
   }
 
   /* Read the result */
-  /* TODO */
+  while (!done) {
+    if ((n = recv(fd, &buf, sizeof buf, MSG_PEEK)) == -1) {
+      perror("recv()");
+      goto fail;
+    }
+    for (newline_pos = 0; 
+         newline_pos < n && buf[newline_pos] != '\n';
+         newline_pos++)
+      ;
+
+    if (newline_pos == 0)
+      continue;
+
+    if (recv(fd, &buf, newline_pos+1, MSG_WAITALL) == -1) {
+      perror("recv()");
+      goto fail;
+    }
+    buf[newline_pos] = '\0';
+
+    if (strcmp(buf, "OK") == 0)
+      done = 1;
+
+    /* TODO */
+  }
 
   /* Close the connection */
   if (close(fd) == -1)
