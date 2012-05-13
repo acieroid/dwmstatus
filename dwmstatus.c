@@ -12,6 +12,7 @@
 #include <arpa/inet.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <signal.h>
 
 /* TODO:
  * Add OSS volume ?
@@ -55,13 +56,15 @@ const char *date();
 void die(const char *fmt, ...);
 const char *ip_address();
 mpd_info_t *mpd();
+void sigint_handler(int signum);
 int temperature();
 int wireless_state();
-
 
 int main()
 {
   const char *status;
+
+  signal(SIGINT, sigint_handler);
 
   if (!(dpy = XOpenDisplay(getenv("DISPLAY"))))
     die("Cannot open display %s", XDisplayName(getenv("DISPLAY")));
@@ -72,6 +75,7 @@ int main()
   while (1) {
     status = build_status();
     XStoreName(dpy, root, status);
+    free((void *)status);
     XFlush(dpy);
     sleep(TIMEOUT);
   }
@@ -288,6 +292,12 @@ mpd_info_t *mpd()
 fail:
   free(info);
   return NULL;
+}
+
+void sigint_handler(int signum)
+{
+  XCloseDisplay(dpy);
+  exit(0);
 }
 
 int temperature()
