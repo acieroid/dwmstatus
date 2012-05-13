@@ -27,6 +27,13 @@
     fprintf(stderr, "Cannot open file %s\n", (file)); \
   }
 
+static const int TIMEOUT = 30;
+static const char *BATTERY_NOW_FILE = "/sys/class/power_supply/BAT0/charge_now";
+static const char *BATTERY_FULL_FILE = "/sys/class/power_supply/BAT0/charge_full";
+static const char *INTERFACE = "wlan0";
+static const char *TEMPERATURE_FILE = "/sys/class/hwmon/hwmon0/temp1_input";
+static const char *WIRELESS_FILE = "/sys/class/net/wlan0/carrier";
+
 Display *dpy = NULL;
 int screen;
 Window root;
@@ -39,7 +46,6 @@ const char *ip_address();
 int temperature();
 int wireless_state();
 
-static const int TIMEOUT = 30;
 
 int main()
 {
@@ -63,8 +69,6 @@ int main()
   return 0;
 }
 
-static const char *BATTERY_NOW_FILE = "/sys/class/power_supply/BAT0/charge_now";
-static const char *BATTERY_FULL_FILE = "/sys/class/power_supply/BAT0/charge_full";
 int battery()
 {
   FILE *f;
@@ -132,7 +136,6 @@ const char *build_status()
 
   free((void *)d);
 
-  ip_address();
   return res;
 }
 
@@ -157,7 +160,6 @@ void die(const char *fmt, ...)
   exit(1);
 }
 
-static const char *INTERFACE = "eth0";
 const char *ip_address()
 {
   struct ifaddrs *ifaddr, *p;
