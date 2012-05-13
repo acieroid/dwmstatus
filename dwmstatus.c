@@ -39,10 +39,10 @@ static const int MPD_PORT = 6600;
 static const char *MPD_SERVER = "127.0.0.1";
 
 typedef struct {
-  const char artist[256];
-  const char title[256];
-  const char album[256];
-  const char filename[256];
+  char artist[256];
+  char title[256];
+  char album[256];
+  char filename[256];
 } mpd_info_t;
 
 Display *dpy = NULL;
@@ -117,9 +117,10 @@ int battery()
 
 const char *build_status()
 {
-  char *res, *wireless_str, *battery_str;
+  char *res, *wireless_str, *battery_str, *mpd_str;
   const char *d, *ip;
   int b, w;
+  mpd_info_t *info;
 
   ALLOCATE(res, 256);
 
@@ -143,9 +144,24 @@ const char *build_status()
     strncpy(wireless_str, "✗", 3);
   }
 
-  snprintf(res, 256, "%s | ⚡ %s | %d°C | %s",
-           wireless_str, battery_str, temperature(), d);
+  info = mpd();
+  ALLOCATE(mpd_str, 255);
+  if (info)
+    if (strlen(info->artist) > 0 &&
+        strlen(info->title) > 0)
+      snprintf(mpd_str, strlen(info->artist) + strlen(info->title) + 4,
+               "%s - %s", info->artist, info->title);
+    else
+      strncpy(mpd_str, info->filename, strlen(info->filename)+1);
+  else
+    strncpy(mpd_str, "no", 3);
 
+  snprintf(res, 256, "♫ %s | %s | ⚡ %s | %d°C | %s",
+           mpd_str, wireless_str, battery_str, temperature(), d);
+
+  free(battery_str);
+  free(wireless_str);
+  free(mpd_str);
   free((void *)d);
 
   mpd();
@@ -197,7 +213,7 @@ const char *ip_address()
 
 mpd_info_t *mpd()
 {
-  int done, n, newline_pos;
+  int done, n, newline_pos, colon_pos;
   int fd;
   struct sockaddr_in addr;
   char buf[256];
@@ -243,7 +259,7 @@ mpd_info_t *mpd()
     if (newline_pos == 0)
       continue;
 
-    if (recv(fd, &buf, newline_pos+1, MSG_WAITALL) == -1) {
+    if ((n = recv(fd, &buf, newline_pos+1, MSG_WAITALL)) == -1) {
       perror("recv()");
       goto fail;
     }
@@ -252,7 +268,18 @@ mpd_info_t *mpd()
     if (strcmp(buf, "OK") == 0)
       done = 1;
 
-    /* TODO */
+    for (colon_pos = 0;
+         colon_pos < n && buf[colon_pos] != ':';
+         colon_pos++)
+      ;
+    if (strncmp(buf, "Artist", colon_pos) == 0)
+      strncpy(info->artist, buf+colon_pos+2, newline_pos - colon_pos - 2);
+    else if (strncmp(buf, "Title", colon_pos) == 0)
+      strncpy(info->title, buf+colon_pos+2, newline_pos - colon_pos - 2);
+    else if (strncmp(buf, "Album", colon_pos) == 0)
+      strncpy(info->album, buf+colon_pos+2, newline_pos - colon_pos - 2);
+    else if (strncmp(buf, "filename", colon_pos) == 0)
+      strncpy(info->filename, buf+colon_pos+2, newline_pos - colon_pos - 2);
   }
 
   /* Close the connection */
