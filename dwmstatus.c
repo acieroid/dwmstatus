@@ -8,8 +8,10 @@
 #include <time.h>
 #include <sys/types.h>
 #include <ifaddrs.h>
-#include <netinet/in.h> 
+#include <netinet/in.h>
 #include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 
 /* TODO:
  * Add OSS volume ?
@@ -33,6 +35,15 @@ static const char *BATTERY_NOW_FILE = "/sys/class/power_supply/BAT0/charge_now";
 static const char *BATTERY_FULL_FILE = "/sys/class/power_supply/BAT0/charge_full";
 static const char *TEMPERATURE_FILE = "/sys/class/hwmon/hwmon0/temp1_input";
 static const char *WIRELESS_FILE = "/sys/class/net/" INTERFACE "/carrier";
+static const int MPD_PORT = 6600;
+static const char *MPD_SERVER = "127.0.0.1";
+
+typedef struct {
+  const char artist[256];
+  const char title[256];
+  const char album[256];
+  const char filename[256];
+} mpd_info_t;
 
 Display *dpy = NULL;
 int screen;
@@ -43,6 +54,7 @@ const char *build_status();
 const char *date();
 void die(const char *fmt, ...);
 const char *ip_address();
+mpd_info_t *mpd();
 int temperature();
 int wireless_state();
 
@@ -182,35 +194,83 @@ const char *ip_address()
   return ip;
 }
 
-static const char *TEMPERATURE_FILE = "/sys/class/hwmon/hwmon0/temp1_input";
+mpd_info_t *mpd()
+{
+  int fd;
+  struct sockaddr_in addr;
+  mpd_info_t *info;
+
+  ALLOCATE(info, 1);
+
+  fd = 0;
+  addr.sin_family = AF_INET;
+  addr.sin_port = htons(MPD_PORT);
+  addr.sin_addr.s_addr = inet_addr(MPD_SERVER);
+  memset(&(addr.sin_zero), 0, sizeof addr.sin_zero);
+
+  /* Connect to MPD */
+  if ((fd = socket(PF_INET, SOCK_STREAM, 0)) == -1) {
+    perror("socket()");
+    goto fail;
+  }
+
+  if (connect(fd, (struct sockaddr *)&addr, sizeof addr) == -1) {
+    perror("connect()");
+    goto fail;
+  }
+
+  /* Send the command */
+  if (send(fd, "currentsong", strlen("currentsong"), 0) == -1) {
+    perror("send()");
+    goto fail;
+  }
+
+  /* Read the result */
+  /* TODO */
+
+  /* Close the connection */
+  if (close(fd) == -1)
+    perror("close()");
+
+  return info;
+
+fail:
+  free(info);
+  return NULL;
+}
+
 int temperature()
 {
   FILE *f;
   char buf[3];
 
   FOPEN(f, TEMPERATURE_FILE);
+  if (f == NULL)
+    return 0;
 
   fread(buf, sizeof *buf, 2, f);
   buf[2] = 0;
   fclose(f);
 
   if (ferror(f))
-    die("Error with file %s", TEMPERATURE_FILE);
+    fprintf(stderr, "Error with file %s", TEMPERATURE_FILE);
 
   return atoi(buf);
 }
 
-static const char *WIRELESS_FILE = "/sys/class/net/eth0/carrier";
 int wireless_state()
 {
   FILE *f;
   char buf;
 
   FOPEN(f, WIRELESS_FILE);
+  if (f == NULL)
+    return 0;
+
   fread(&buf, sizeof buf, 1, f);
   fclose(f);
   if (ferror(f))
-    die("Error with file %s", WIRELESS_FILE);
+    fprintf(stderr, "Error with file %s", WIRELESS_FILE);
 
   return buf == '1';
 }
