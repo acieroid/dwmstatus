@@ -27,12 +27,12 @@
     fprintf(stderr, "Cannot open file %s\n", (file)); \
   }
 
+#define INTERFACE "wlan0"
 static const int TIMEOUT = 30;
 static const char *BATTERY_NOW_FILE = "/sys/class/power_supply/BAT0/charge_now";
 static const char *BATTERY_FULL_FILE = "/sys/class/power_supply/BAT0/charge_full";
-static const char *INTERFACE = "wlan0";
 static const char *TEMPERATURE_FILE = "/sys/class/hwmon/hwmon0/temp1_input";
-static const char *WIRELESS_FILE = "/sys/class/net/wlan0/carrier";
+static const char *WIRELESS_FILE = "/sys/class/net/" INTERFACE "/carrier";
 
 Display *dpy = NULL;
 int screen;
