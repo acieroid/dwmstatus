@@ -30,7 +30,7 @@
     fprintf(stderr, "Cannot open file %s\n", (file)); \
   }
 
-#define INTERFACE "wlan0"
+#define INTERFACE "eth0"
 static const int TIMEOUT = 30;
 static const char *BATTERY_NOW_FILE = "/sys/class/power_supply/BAT0/charge_now";
 static const char *BATTERY_FULL_FILE = "/sys/class/power_supply/BAT0/charge_full";
@@ -174,10 +174,10 @@ const char *date()
   time_t t;
   char *res;
 
-  ALLOCATE(res, 21);
+  ALLOCATE(res, 25);
 
   t = time(NULL);
-  strftime(res, 20, "%D %H:%M", localtime(&t));
+  strftime(res, 24, "%a %D %H:%M", localtime(&t));
   return res;
 }
 
